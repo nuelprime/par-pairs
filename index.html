@@ -159,6 +159,25 @@ tbody tr:hover{background:var(--panel)}
 }
 .sk-b.sm{height:7px;opacity:.72}
 .sk-b.sq{height:30px;width:30px;border-radius:8px}
+.slabs{display:flex;flex-direction:column;gap:.5rem;padding:.55rem .9rem 1.4rem}
+.slab{background:var(--panel);border:1px solid var(--line2);border-radius:15px;padding:.7rem .8rem;cursor:pointer}
+.slab:active{background:var(--panel2)}
+.slab-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.6rem;align-items:center}
+.slab .logo{width:34px;height:34px;border-radius:9px}
+.slab-id{min-width:0}
+.slab-id .s{display:block;font-weight:600;font-size:.92rem;line-height:1.25}
+.slab-id .qpill{margin-top:.22rem}
+.slab-val{text-align:right;font-family:var(--mono);white-space:nowrap}
+.slab-val b{display:block;font-weight:500;font-size:.9rem;color:var(--gold);line-height:1.25}
+.slab-val b small{color:var(--dimmer);font-size:.6rem;margin-left:.2rem;font-family:var(--ui)}
+.slab-val .q{display:block;color:var(--dim);font-size:.7rem;margin-top:.1rem}
+.slab-foot{
+  display:flex;gap:.85rem;margin-top:.65rem;padding-top:.55rem;
+  border-top:1px solid var(--line2);font-family:var(--mono);font-size:.68rem;color:var(--dim);
+}
+.slab-foot span em{color:var(--dimmer);font-style:normal;margin-left:.2rem}
+.slab-foot span.on{color:var(--cream)}
+.slab.sk{cursor:default}
 @keyframes shimmer{0%{background-position:110% 0}100%{background-position:-110% 0}}
 @media (prefers-reduced-motion:reduce){.sk-b{animation:none}}
 tr.sk td{vertical-align:middle}
@@ -169,7 +188,7 @@ td.stack .sk-b + .sk-b{margin-top:5px}
 .pair.sk{border:none;background:none;cursor:default}
 .pair.sk .dot{background:rgba(255,255,255,.08)}
 .state{padding:3rem 1.3rem;color:var(--dim);max-width:34rem}
-.state b{display:block;color:var(--text);font-size:1rem;margin-bottom:.35rem}
+.state b{display:block;color:var(--text);font-size:1rem}
 .state code{font-family:var(--mono);font-size:.76rem;color:var(--gold)}
 
 /* phone: the pair rail becomes a horizontal chip strip, so the table keeps the screen */
@@ -519,6 +538,7 @@ function rows(){
 }
 
 const SKW = [78,64,88,56,72,60,84,68,54,76,62,80,58,70,66,74];
+const phone = () => window.matchMedia('(max-width:820px)').matches;
 
 function skeleton(){
   const rail = document.getElementById('rail');
@@ -542,7 +562,16 @@ function skeleton(){
   }).join('');
 
   const sc = document.getElementById('scroll');
-  if (sc) sc.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  if (sc) sc.innerHTML = phone()
+    ? `<div class="slabs">` + Array.from({length:12}, (_, i) => `<article class="slab sk">
+        <div class="slab-top">
+          <span class="sk-b sq" style="width:34px;height:34px"></span>
+          <div class="slab-id"><span class="sk-b" style="width:${SKW[i]}px"></span><span class="sk-b sm" style="width:${44 + (i % 3) * 9}px;margin-top:6px"></span></div>
+          <div class="slab-val"><span class="sk-b" style="width:${58 + (i % 4) * 7}px"></span><span class="sk-b sm" style="width:${40 + (i % 3) * 8}px;margin-top:6px"></span></div>
+        </div>
+        <div class="slab-foot"><span class="sk-b" style="width:52px"></span><span class="sk-b" style="width:44px"></span><span class="sk-b" style="width:40px"></span></div>
+      </article>`).join('') + `</div>`
+    : `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
   drawSorts();
 }
 
@@ -554,6 +583,36 @@ function drawSorts(){
     const arrow = on ? (sort.dir < 0 ? ' \u2193' : ' \u2191') : '';
     return `<button class="chip" data-sort="${c.key}" aria-pressed="${on}">${c.label}${arrow}</button>`;
   }).join('');
+}
+
+function slabs(list){
+  const activeFoot = k => sort.key === k ? ' class="on"' : '';
+  return `<div class="slabs">` + list.map(m => {
+    const vol = eth(sel === null ? m.volEthToken : m.volEth);
+    const tx  = (n => n ? n.toLocaleString() : DASH)(sel === null ? m.tradesToken : m.trades);
+    const volFirst = sort.key === 'volEth';
+    return `<article class="slab" data-token="${m.token}">
+      <div class="slab-top">
+        ${m.cid ? `<img class="logo" src="${GATEWAYS[0]}${esc(m.cid)}" data-cid="${esc(m.cid)}" data-g="0" alt="" loading="lazy" onerror="nextGateway(this)">` : `<span class="logo"></span>`}
+        <div class="slab-id">
+          <span class="s"><a href="${TOKEN_PAGE(m.token)}" target="_blank" rel="noopener">${esc(m.symbol)}</a>${m.marketCount > 1 ? `<span class="mk">${m.marketCount}×</span>` : ''}</span>
+          ${sel === null
+            ? `<span class="qpill"><i style="background:${riskColor(m.quoteRisk)}"></i>${esc(m.quoteSymbol)}</span>`
+            : `<span class="qpill"><i style="background:${riskColor(m.quoteRisk)}"></i>${esc(m.name)}</span>`}
+        </div>
+        <div class="slab-val">
+          ${volFirst
+            ? `<b>${vol}<small>VOL</small></b><span class="q">${usd(m.mcapEth)} mc</span>`
+            : `<b>${usd(m.mcapEth)}${m.mcapEth ? '<small>MC</small>' : ''}</b><span class="q">${vol} vol</span>`}
+        </div>
+      </div>
+      <div class="slab-foot">
+        <span${activeFoot('trades')}>${tx}<em>tx</em></span>
+        <span${activeFoot('lastTradeAt')}>${ago(m.lastTradeAt)}<em>last</em></span>
+        <span${activeFoot('createdAt')}>${ago(m.createdAt)}<em>old</em></span>
+      </div>
+    </article>`;
+  }).join('') + `</div>`;
 }
 
 function draw(){
@@ -603,7 +662,7 @@ function draw(){
     <td class="hide-s">${ago(m.createdAt)}</td>
   </tr>`).join('');
 
-  sc.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  sc.innerHTML = phone() ? slabs(list) : `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
   sc.scrollTop = keepTop;
 }
 
@@ -645,6 +704,9 @@ document.getElementById('scroll').addEventListener('click', e => {
 
 /* ---------- go ---------- */
 skeleton();
+window.matchMedia('(max-width:820px)').addEventListener('change', () => {
+  if (markets.length) draw(); else skeleton();
+});
 
 (async () => {
   const p0 = page(0), p1 = page(500).catch(() => []);
@@ -673,7 +735,7 @@ skeleton();
   setInterval(() => { if (!dirty.size) draw(); }, 45000);
 })().catch(err => {
   document.getElementById('scroll').innerHTML =
-    `<div class="state"><b>The indexer did not answer</b>${esc(err.message)}. Retry, or check <code>${API}/health</code> for lag.</div>`;
+    `<div class="state"><b>${esc(err.message)}</b></div>`;
   document.getElementById('railnote').textContent = 'offline';
 });
 </script>
