@@ -88,6 +88,11 @@ a{color:inherit;text-decoration:none}
 .ctx small{font-family:var(--mono);font-size:.72rem;color:var(--dim)}
 .risks{display:flex;gap:.3rem;margin-left:auto}
 .sorts{display:none}
+.only-s{display:none}
+.ico{width:13px;height:13px;vertical-align:-2px}
+td.stack b{display:block;font-weight:500;font-size:.82rem;line-height:1.3}
+td.stack b small{color:var(--dimmer);font-size:.6rem;margin-left:.2rem;font-family:var(--ui)}
+td.stack .q{display:block;color:var(--dim);font-size:.68rem;line-height:1.3}
 .chip{
   font-family:var(--mono);font-size:.7rem;padding:.24rem .6rem;border-radius:999px;
   border:1px solid var(--line2);color:var(--dimmer);
@@ -176,6 +181,7 @@ tbody tr:hover{background:var(--panel)}
   .sorts .chip[aria-pressed="true"]{color:var(--cream);border-color:var(--cream)}
   .tokname .n{max-width:8rem}
   .hide-s,.hide-m{display:none}
+  .only-s{display:table-cell}
   tbody td,thead th{padding:.45rem .5rem}
   .ctx b{font-size:1rem}
 }
@@ -451,15 +457,34 @@ function drawRail(){
 }
 
 /* ---------- table ---------- */
+const CLOCK = '<svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.1" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.6V8l2.4 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+
 const COLS = [
   {key:'rank',     label:'',       sortable:false, cls:'hide-s'},
   {key:'tok',      label:'token',  sortable:false},
-  {key:'mcapEth',  label:'mcap', title:'last price on this market x circulating supply, converted at the USDG-implied ETH rate'},
-  {key:'volEth',   label:'vol Ξ', title:'derived from totalVolumeQuote at the last price, within a few percent'},
-  {key:'trades',   label:'trades', cls:'hide-m'},
-  {key:'lastTradeAt', label:'last'},
-  {key:'createdAt',   label:'age', cls:'hide-s'}
+  {key:'value',    label:'value',  sortable:false, cls:'only-s'},
+  {key:'mcapEth',  label:'mcap', cls:'hide-s', title:'last price on this market x circulating supply, converted at the USDG-implied ETH rate'},
+  {key:'volEth',   label:'vol Ξ', cls:'hide-s', title:'derived from totalVolumeQuote at the last price, within a few percent'},
+  {key:'trades',   label:'trades'},
+  {key:'when',     label:CLOCK,    sortable:false, cls:'only-s'},
+  {key:'lastTradeAt', label:'last', cls:'hide-s'},
+  {key:'createdAt',   label:'age',  cls:'hide-s'}
 ];
+
+function valueStack(m){
+  const mc  = `<b class="mcap">${usd(m.mcapEth)}${m.mcapEth ? '<small>MC</small>' : ''}</b>`;
+  const vol = `<span>${eth(sel === null ? m.volEthToken : m.volEth)} vol</span>`;
+  return sort.key === 'volEth'
+    ? `<b>${eth(sel === null ? m.volEthToken : m.volEth)}<small>VOL</small></b><span class="q">${usd(m.mcapEth)} mc</span>`
+    : mc + vol.replace('<span>', '<span class="q">');
+}
+
+function whenStack(m){
+  const last = ago(m.lastTradeAt), age = ago(m.createdAt);
+  return sort.key === 'createdAt'
+    ? `<b>${age}</b><span class="q">${last}</span>`
+    : `<b>${last}</b><span class="q">${age}</span>`;
+}
 
 function rows(){
   let r = markets.filter(m => risks.has(m.quoteRisk));
@@ -528,10 +553,12 @@ function draw(){
         </span>
       </div>
     </td>
-    <td class="mcap ${m.stale ? 'stale' : ''}" title="${m.mcapEth.toPrecision(3)} ETH${m.stale ? ' (quote price stale, approximate)' : ''}">${usd(m.mcapEth)}${m.mcapEth ? '<small>MC</small>' : ''}</td>
-    <td>${eth(sel === null ? m.volEthToken : m.volEth)}</td>
-    <td class="hide-m">${(n => n ? n.toLocaleString() : DASH)(sel === null ? m.tradesToken : m.trades)}</td>
-    <td>${ago(m.lastTradeAt)}</td>
+    <td class="only-s stack">${valueStack(m)}</td>
+    <td class="mcap hide-s ${m.stale ? 'stale' : ''}" title="${m.mcapEth.toPrecision(3)} ETH${m.stale ? ' (quote price stale, approximate)' : ''}">${usd(m.mcapEth)}${m.mcapEth ? '<small>MC</small>' : ''}</td>
+    <td class="hide-s">${eth(sel === null ? m.volEthToken : m.volEth)}</td>
+    <td>${(n => n ? n.toLocaleString() : DASH)(sel === null ? m.tradesToken : m.trades)}</td>
+    <td class="only-s stack">${whenStack(m)}</td>
+    <td class="hide-s">${ago(m.lastTradeAt)}</td>
     <td class="hide-s">${ago(m.createdAt)}</td>
   </tr>`).join('');
 
