@@ -152,6 +152,22 @@ tbody tr:hover{background:var(--panel)}
 .stale{color:var(--gold)}
 
 
+.sk-b{
+  display:inline-block;height:9px;border-radius:3px;
+  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 37%,rgba(255,255,255,.05) 63%);
+  background-size:280% 100%;animation:shimmer 1.5s linear infinite;
+}
+.sk-b.sm{height:7px;opacity:.72}
+.sk-b.sq{height:30px;width:30px;border-radius:8px}
+@keyframes shimmer{0%{background-position:110% 0}100%{background-position:-110% 0}}
+@media (prefers-reduced-motion:reduce){.sk-b{animation:none}}
+tr.sk td{vertical-align:middle}
+tr.sk .tokname .sk-b{display:block}
+tr.sk .tokname .sk-b + .sk-b{margin-top:5px}
+td.stack .sk-b{display:block;margin-left:auto}
+td.stack .sk-b + .sk-b{margin-top:5px}
+.pair.sk{border:none;background:none;cursor:default}
+.pair.sk .dot{background:rgba(255,255,255,.08)}
 .state{padding:3rem 1.3rem;color:var(--dim);max-width:34rem}
 .state b{display:block;color:var(--text);font-size:1rem;margin-bottom:.35rem}
 .state code{font-family:var(--mono);font-size:.76rem;color:var(--gold)}
@@ -203,7 +219,7 @@ tbody tr:hover{background:var(--panel)}
       <input class="search" id="q" placeholder="filter quotes" aria-label="Filter quote assets">
     </div>
     <div class="pairs" id="rail"></div>
-    <div class="railnote" id="railnote">loading</div>
+    <div class="railnote" id="railnote">&nbsp;</div>
   </aside>
 
   <main class="main">
@@ -216,9 +232,7 @@ tbody tr:hover{background:var(--panel)}
         <button class="chip wild"     data-risk="wild"     aria-pressed="true">wild</button>
       </div>
     </div>
-    <div class="scroll" id="scroll">
-      <div class="state"><b>Reading the indexer</b>Pulling every launch from api.par.family, then splitting the grouped ones into their markets.</div>
-    </div>
+    <div class="scroll" id="scroll"></div>
   </main>
 </div>
 
@@ -259,16 +273,10 @@ let risks   = new Set(['native','verified','wild']);
 let sort    = {key:'mcapEth', dir:-1};
 
 /* ---------- fetch ---------- */
-async function pull(){
-  const out = [];
-  for (let off = 0; off < 4000; off += 500){
-    const r = await fetch(`${API}/launches?orderBy=createdAt&orderDirection=desc&limit=500&offset=${off}`);
-    if (!r.ok) throw new Error(`${r.status} on /launches`);
-    const page = await r.json();
-    out.push(...page);
-    if (page.length < 500) break;
-  }
-  return out;
+async function page(off){
+  const r = await fetch(`${API}/launches?orderBy=createdAt&orderDirection=desc&limit=500&offset=${off}`);
+  if (!r.ok) throw new Error(`${r.status} on /launches`);
+  return r.json();
 }
 
 async function pullSome(tokens){
@@ -510,6 +518,34 @@ function rows(){
   return r.sort((a,b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * d);
 }
 
+const SKW = [78,64,88,56,72,60,84,68,54,76,62,80,58,70,66,74];
+
+function skeleton(){
+  const rail = document.getElementById('rail');
+  if (rail) rail.innerHTML = Array.from({length:16}, (_, i) =>
+    `<div class="pair sk"><span class="dot"></span><span class="sym"><span class="sk-b" style="width:${SKW[i]}px"></span></span><span class="n"></span></div>`).join('');
+
+  const head = COLS.map(c => `<th class="${c.cls || ''}">${c.label}</th>`).join('');
+  const body = Array.from({length:18}, (_, i) => {
+    const w = SKW[i % SKW.length];
+    return `<tr class="sk">
+      <td class="hide-s"><span class="sk-b" style="width:10px"></span></td>
+      <td class="tok"><div class="tokline"><span class="sk-b sq"></span><span class="tokname"><span class="sk-b" style="width:${w}px"></span><span class="sk-b sm" style="width:${44 + (i % 3) * 9}px"></span></span></div></td>
+      <td class="only-s stack"><span class="sk-b" style="width:${58 + (i % 4) * 7}px"></span><span class="sk-b sm" style="width:${40 + (i % 3) * 8}px"></span></td>
+      <td class="hide-s"><span class="sk-b" style="width:${52 + (i % 4) * 9}px"></span></td>
+      <td class="hide-s"><span class="sk-b" style="width:${34 + (i % 3) * 10}px"></span></td>
+      <td><span class="sk-b" style="width:${30 + (i % 4) * 8}px"></span></td>
+      <td class="only-s stack"><span class="sk-b" style="width:26px"></span><span class="sk-b sm" style="width:20px"></span></td>
+      <td class="hide-s"><span class="sk-b" style="width:24px"></span></td>
+      <td class="hide-s"><span class="sk-b" style="width:22px"></span></td>
+    </tr>`;
+  }).join('');
+
+  const sc = document.getElementById('scroll');
+  if (sc) sc.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  drawSorts();
+}
+
 function drawSorts(){
   const el = document.getElementById('sorts');
   if (!el) return;
@@ -608,13 +644,34 @@ document.getElementById('scroll').addEventListener('click', e => {
 });
 
 /* ---------- go ---------- */
-pull().then(raw => {
-  usdPerEth = deriveUsd(raw);
-  store(raw);
+skeleton();
+
+(async () => {
+  const p0 = page(0), p1 = page(500).catch(() => []);
+  const first = await p0;
+  usdPerEth = deriveUsd(first);
+  store(first);
   rebuild();
   connect();
+
+  const rest = await p1;
+  if (rest.length){
+    store(rest);
+    const rate = deriveUsd([...rawByToken.values()]);
+    if (rate) usdPerEth = rate;
+    rebuild();
+  }
+  if (rest.length === 500){
+    for (let off = 1000; off < 6000; off += 500){
+      const more = await page(off).catch(() => []);
+      if (!more.length) break;
+      store(more);
+      rebuild();
+      if (more.length < 500) break;
+    }
+  }
   setInterval(() => { if (!dirty.size) draw(); }, 45000);
-}).catch(err => {
+})().catch(err => {
   document.getElementById('scroll').innerHTML =
     `<div class="state"><b>The indexer did not answer</b>${esc(err.message)}. Retry, or check <code>${API}/health</code> for lag.</div>`;
   document.getElementById('railnote').textContent = 'offline';
