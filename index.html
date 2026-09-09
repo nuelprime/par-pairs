@@ -703,8 +703,8 @@ document.getElementById('scroll').addEventListener('click', e => {
     draw();
     return;
   }
-  if (e.target.closest('a')) return;              // the symbol link handles itself
-  const row = e.target.closest('tr[data-token]');
+  if (e.target.closest('a')) return;
+  const row = e.target.closest('[data-token]');
   if (row) window.open(TOKEN_PAGE(row.dataset.token), '_blank', 'noopener');
 });
 
