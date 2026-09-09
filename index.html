@@ -478,7 +478,7 @@ function draw(){
   const f = sel === null ? null : facets.find(x => x.pairToken === sel);
   document.getElementById('ctx').innerHTML = f
     ? `<b>quoted in <span class="quote">${esc(f.sym)}</span></b><small>${f.n} market${f.n>1?'s':''} · ${esc(f.risk)}</small>`
-    : `<b>All pairs</b><small>one row per token, best market</small>`;
+    : `<b>All pairs</b>`;
 
   const list = rows();
   if (!list.length){
