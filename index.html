@@ -87,6 +87,7 @@ a{color:inherit;text-decoration:none}
 .ctx .quote{font-family:var(--mono);color:var(--cream)}
 .ctx small{font-family:var(--mono);font-size:.72rem;color:var(--dim)}
 .risks{display:flex;gap:.3rem;margin-left:auto}
+.sorts{display:none}
 .chip{
   font-family:var(--mono);font-size:.7rem;padding:.24rem .6rem;border-radius:999px;
   border:1px solid var(--line2);color:var(--dimmer);
@@ -164,8 +165,15 @@ tbody tr:hover{background:var(--panel)}
   .pair[aria-current="true"]{box-shadow:none;border-color:var(--cream)}
   .pair.rollup{display:none}
   .railnote{display:none}
-  .bar{padding:.7rem .9rem}
-  .risks{margin-left:0;width:100%}
+  .bar{padding:.7rem .9rem;gap:.55rem}
+  .risks{margin-left:0}
+  .sorts{
+    display:flex;gap:.3rem;order:3;width:100%;
+    overflow-x:auto;scrollbar-width:none;padding-bottom:.1rem;
+  }
+  .sorts::-webkit-scrollbar{display:none}
+  .sorts .chip{flex:0 0 auto}
+  .sorts .chip[aria-pressed="true"]{color:var(--cream);border-color:var(--cream)}
   .tokname .n{max-width:8rem}
   .hide-s,.hide-m{display:none}
   tbody td,thead th{padding:.45rem .5rem}
@@ -190,6 +198,7 @@ tbody tr:hover{background:var(--panel)}
   <main class="main">
     <div class="bar">
       <div class="ctx" id="ctx"><b>All pairs</b></div>
+      <div class="sorts" id="sorts"></div>
       <div class="risks" id="risks">
         <button class="chip native"   data-risk="native"   aria-pressed="true">native</button>
         <button class="chip verified" data-risk="verified" aria-pressed="true">verified</button>
@@ -471,10 +480,21 @@ function rows(){
   return r.sort((a,b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * d);
 }
 
+function drawSorts(){
+  const el = document.getElementById('sorts');
+  if (!el) return;
+  el.innerHTML = COLS.filter(c => c.sortable !== false).map(c => {
+    const on = sort.key === c.key;
+    const arrow = on ? (sort.dir < 0 ? ' \u2193' : ' \u2191') : '';
+    return `<button class="chip" data-sort="${c.key}" aria-pressed="${on}">${c.label}${arrow}</button>`;
+  }).join('');
+}
+
 function draw(){
   const sc = document.getElementById('scroll');
   const keepTop = sc ? sc.scrollTop : 0;
   drawRail();
+  drawSorts();
   const f = sel === null ? null : facets.find(x => x.pairToken === sel);
   document.getElementById('ctx').innerHTML = f
     ? `<b>quoted in <span class="quote">${esc(f.sym)}</span></b><small>${f.n} market${f.n>1?'s':''} · ${esc(f.risk)}</small>`
@@ -528,6 +548,13 @@ document.getElementById('rail').addEventListener('click', e => {
   document.getElementById('scroll').scrollTop = 0;
 });
 document.getElementById('q').addEventListener('input', drawRail);
+document.getElementById('sorts').addEventListener('click', e => {
+  const b = e.target.closest('[data-sort]');
+  if (!b) return;
+  const k = b.dataset.sort;
+  sort = {key:k, dir: sort.key === k ? -sort.dir : -1};
+  draw();
+});
 document.getElementById('risks').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
   const r = b.dataset.risk;
